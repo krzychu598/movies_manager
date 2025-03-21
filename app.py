@@ -1,35 +1,19 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import os
-import sys
-from format import create_tags
+from format import FolderManager, Tag
 import json
-
-PATH = "..\\..\\movies"
-
-
-# Helper function to determine if we're running as a bundled app
-def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 
 class DataFilterApp:
-    def __init__(self, root):
+    def __init__(self, root, directory):
         self.root = root
         self.root.title("Data Filter Application")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
-        create_tags(PATH)
+        self.folder_manager = FolderManager(directory)
         self.update_dict_data()
         self.data = pd.DataFrame(self.dict_data)
         self.create_widgets()
@@ -37,19 +21,11 @@ class DataFilterApp:
 
     def update_dict_data(self):
         info = []
-        for folder in os.listdir(PATH):
-            file_path = os.path.join(PATH, folder, "tags.json")
-            try:
-                with open(file_path) as f:
-                    a = json.load(f)
-                    print(a)
-                info.append(a)
-            except:
-                print("Couldn't fetch info")
+        for movie in self.folder_manager.movies.values():
+            info.append(movie.info)
         self.dict_data = info
 
     def create_widgets(self):
-        # Create main frames
         top_frame = ttk.Frame(self.root)
         top_frame.pack(fill="x", pady=5, padx=10)
 
@@ -383,8 +359,15 @@ class DataFilterApp:
 
 
 def main():
+    def _quit():
+        root.quit()
+        root.destroy()
+
     root = tk.Tk()
-    app = DataFilterApp(root)
+    root.protocol("WM_DELETE_WINDOW", _quit)
+    dir = filedialog.askdirectory(title="Select Data Directory")
+    dir.replace("/", "\\")
+    app = DataFilterApp(root, dir)
     root.mainloop()
 
 
