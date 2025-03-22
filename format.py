@@ -90,12 +90,13 @@ class FolderManager:
                         selected_frames = random.sample(
                             range(frame_count), min(num_frames, frame_count)
                         )
+                    base_name = movie_folder.split(" (")[0]
 
                     for i, frame_num in enumerate(selected_frames):
                         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
                         ret, frame = cap.read()
                         if ret:
-                            frame_name = f"{movie_folder.split(' (')[0]}_frame{i}.jpg"
+                            frame_name = f"{base_name}_frame{i}.jpg"
                             print(frame_name)
 
                             cv2.imwrite(os.path.join(images_folder, frame_name), frame)

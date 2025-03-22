@@ -211,24 +211,12 @@ class DataFilterApp:
         if not self.dict_data:
             return
 
-        # Get all unique values for the selected field
-        unique_values = set()
-        for item in self.dict_data:
-            if filter_type in item:
-                unique_values.add(str(item[filter_type]))
-
-        # Show hint with some sample values (limited to first 3)
-        sample_values = list(unique_values)[:3]
-        if sample_values:
-            hint = "e.g., " + ", ".join(sample_values)
-            self.filter_value.insert(0, hint)
-
     def apply_filter(self):
         filter_type = self.filter_type.get()
         filter_method = self.filter_method.get()
         filter_value = self.filter_value.get()
 
-        if not filter_value or filter_value.startswith("e.g.,"):
+        if not filter_value:
             messagebox.showwarning("Filter Error", "Please enter a valid filter value.")
             return
 
