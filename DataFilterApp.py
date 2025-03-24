@@ -3,7 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from format import FolderManager, Tag
+from FolderManager import FolderManager, Tag
 import json
 
 
@@ -26,9 +26,11 @@ class DataFilterApp:
         self.root.title("Data Filter Application")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
+
         self.folder_manager = FolderManager(self.directory)
-        self.update_dict_data()
+        self.dict_data = self.update_dict_data()
         self.data = pd.DataFrame(self.dict_data)
+
         self.create_widgets()
         self.display_data()
 
@@ -36,29 +38,25 @@ class DataFilterApp:
         info = []
         for movie in self.folder_manager.movies.values():
             info.append(movie.info)
-        self.dict_data = info
+        return info
 
     def create_widgets(self):
         top_frame = ttk.Frame(self.root)
-        top_frame.pack(fill="x", pady=5, padx=10)
+        top_frame.pack(pady=5, padx=10, fill="x")
 
-        # Add button to load dictionary data
         load_button = ttk.Button(
-            top_frame, text="Load Dictionary Data", command=self.load_dictionary_data
+            top_frame, text="Refresh Dictionary Data", command=self.update_dict_data
         )
         load_button.pack(side="right", padx=5)
 
-        # Create frame for filter options
         filter_frame = ttk.LabelFrame(self.root, text="Filter Options")
         filter_frame.pack(pady=5, padx=10, fill="x")
 
-        # Get available filter types from the first dictionary
         if len(self.dict_data) > 0:
             available_fields = list(self.dict_data[0].keys())
         else:
             available_fields = []
 
-        # Filter type selection
         ttk.Label(filter_frame, text="Filter Field:").grid(
             row=0, column=0, padx=5, pady=5, sticky="w"
         )
@@ -69,7 +67,6 @@ class DataFilterApp:
         self.filter_type.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         self.filter_type.bind("<<ComboboxSelected>>", self.on_filter_type_change)
 
-        # Filter method selection
         ttk.Label(filter_frame, text="Filter Method:").grid(
             row=0, column=2, padx=5, pady=5, sticky="w"
         )
@@ -83,14 +80,12 @@ class DataFilterApp:
         self.filter_method.current(0)
         self.filter_method.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 
-        # Filter value input
         ttk.Label(filter_frame, text="Filter Value:").grid(
             row=1, column=0, padx=5, pady=5, sticky="w"
         )
         self.filter_value = ttk.Entry(filter_frame, width=20)
         self.filter_value.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
-        # Add filter button
         self.filter_button = ttk.Button(
             filter_frame, text="Apply Filter", command=self.apply_filter
         )
