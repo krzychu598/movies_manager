@@ -7,13 +7,26 @@ from format import FolderManager, Tag
 import json
 
 
+class MovieEntry:
+    def __init__(self):
+        pass
+
+
 class DataFilterApp:
-    def __init__(self, root, directory):
+    def __init__(self, root):
         self.root = root
+        try:
+            with open("init.json", "r") as f:
+                d = json.load(f)
+                self.directory = d["dir"]
+        except:
+            self.directory = filedialog.askdirectory(title="Select Data Directory")
+            with open("init.json", "w") as f:
+                json.dump({"dir": self.directory}, f)
         self.root.title("Data Filter Application")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
-        self.folder_manager = FolderManager(directory)
+        self.folder_manager = FolderManager(self.directory)
         self.update_dict_data()
         self.data = pd.DataFrame(self.dict_data)
         self.create_widgets()
@@ -353,9 +366,7 @@ def main():
 
     root = tk.Tk()
     root.protocol("WM_DELETE_WINDOW", _quit)
-    dir = filedialog.askdirectory(title="Select Data Directory")
-    dir.replace("/", "\\")
-    app = DataFilterApp(root, dir)
+    app = DataFilterApp(root)
     root.mainloop()
 
 

@@ -40,7 +40,7 @@ class FolderManager:
             file_info_path = os.path.join(self.path, folder_name, "tags.json")
             try:
                 info = self._get_info_from_file(file_info_path)
-                self.movies[info[0]] = Movie(info)
+                self.movies[info["title"]] = Movie(info)
             except:
                 info = self._get_info_from_name(folder_name)
                 info["path"] = os.path.join(self.path, folder_name)
@@ -50,16 +50,19 @@ class FolderManager:
     def rename(self):
         pass
 
-    def _get_info_from_file(self, path) -> str:
+    def _get_info_from_file(self, path) -> dict:
         with open(path) as f:
             return json.load(f)
 
-    def _get_info_from_name(self, file_name) -> str:
-        parts = re.split(r"[\(\)\[\]]", file_name)
-        parts[0] = parts[0][:-1]
+    def _get_info_from_name(self, file_name) -> dict:
+        year_match = re.search(r"(?:^|\D)(19\d{2}|20\d{2})(?:\D|$)", file_name)
+        if year_match:
+            year = int(year_match.group(1))
+        else:
+            year = "unknown"
+        parts = re.split(r" \(|\.|\[", file_name)
         title = parts[0]
-        year = parts[2]
-        res = parts[4]
+        res = re.search(r"\[(.*?)\]", file_name).group(1)
         info = {"title": title, "year": year, "resolution": res}
         return info
 
