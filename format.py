@@ -1,4 +1,4 @@
-import os, re, json, cv2, random, locale
+import os, re, json, cv2, random
 from enum import Enum
 
 
@@ -42,9 +42,8 @@ class FolderManager:
                 info = self._get_info_from_file(file_info_path)
                 self.movies[info[0]] = Movie(info)
             except:
-                title, year, res = self._get_info_from_name(folder_name)
-                path = os.path.join(self.path, folder_name)
-                info = {"title": title, "year": year, "resolution": res, "path": path}
+                info = self._get_info_from_name(folder_name)
+                info["path"] = os.path.join(self.path, folder_name)
                 self.movies[info["title"]] = Movie(info)
                 self.movies[info["title"]].save_info_to_file()
 
@@ -56,13 +55,22 @@ class FolderManager:
             return json.load(f)
 
     def _get_info_from_name(self, file_name) -> str:
-        ret = []
         parts = re.split(r"[\(\)\[\]]", file_name)
         parts[0] = parts[0][:-1]
-        for part in parts:
-            if part and part != " ":
-                ret.append(part)
-        return ret
+        title = parts[0]
+        year = parts[2]
+        res = parts[4]
+        info = {"title": title, "year": year, "resolution": res}
+        return info
+
+    def remove_images(self):
+        for folder in os.listdir(self.path):
+            images = []
+            images_folder = os.path.join(self.path, folder, "images")
+            for image in os.listdir(images_folder):
+                images.append(os.path.join(images_folder, image))
+            for img in images:
+                os.remove(img)
 
     def save_images(self):
         num_frames = 5
@@ -90,6 +98,7 @@ class FolderManager:
                         selected_frames = random.sample(
                             range(frame_count), min(num_frames, frame_count)
                         )
+                    selected_frames = sorted(selected_frames)
                     base_name = movie_folder.split(" (")[0]
 
                     for i, frame_num in enumerate(selected_frames):
@@ -102,3 +111,8 @@ class FolderManager:
                             cv2.imwrite(os.path.join(images_folder, frame_name), frame)
 
                     cap.release()
+
+
+if __name__ == "__main__":
+    fm = FolderManager()
+    fm.save_images()
