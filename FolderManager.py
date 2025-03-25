@@ -1,4 +1,4 @@
-import os, re, json, cv2, random
+import os, re, json, cv2, random, requests
 from enum import Enum
 
 
@@ -14,8 +14,7 @@ class Tag(Enum):
 
 class Movie:
     def __init__(self, info):
-        # self.title = info["title"]
-        # self.year = int(info["year"])
+        self.year = int(info["year"])
         # self.res = info["resolution"]
         self.path = info["path"]
         self.title = info["title"]
@@ -32,6 +31,25 @@ class Movie:
     def get_image_path(self):
         for image in os.listdir(os.path.join(self.path, "images")):
             return os.path.join(self.path, "images", image)
+
+    def get_full_movie_info(self):
+        try:
+            with open("api_key.txt", "r") as f:
+                api_key = f.readline()
+        except:
+            print("No api key found!")
+            return
+        url = f"https://api.themoviedb.org/3/search/movie?include_adult=true&query={self.title}&api_key={api_key}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            for movie in data["results"]:
+                if movie["release_date"].split("-")[0] == str(self.year):
+                    print(movie)
+                    return
+            print("Movie wasn't found")
+        else:
+            print(f"Error {response.status_code}")
 
 
 class FolderManager:
@@ -134,4 +152,5 @@ class FolderManager:
 
 if __name__ == "__main__":
     fm = FolderManager()
-    print(os.access(fm.movies["Ringu"].path, os.R_OK))
+    print(os.access(fm.movies["Frankenstein"].path, os.R_OK))
+    fm.movies["Frankenstein"].get_full_movie_info()
