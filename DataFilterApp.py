@@ -8,11 +8,6 @@ import json, os
 from PIL import Image, ImageTk
 
 
-class MovieEntry:
-    def __init__(self):
-        pass
-
-
 class DataFilterApp:
     def __init__(self, root):
         self.root = root
@@ -178,11 +173,21 @@ class DataFilterApp:
             image_label = tk.Label(movie_entry_frame, image=photo)
             image_label.pack(side="left")
 
-            title_label = tk.Label(movie_entry_frame, text=movie.title)
+            text = f"{movie.title} ({movie.year})\nDirector:\t{movie.director}"  # \tScreenplay:\t{", ".join(movie.screenplay)}
+            title_label = tk.Label(
+                movie_entry_frame,
+                text=text,
+            )
             title_label.bind(
                 "<Button-1>", lambda _, path=movie.path: self.open_file_path(path)
             )
-            title_label.pack(side="left", expand=True, padx=10)
+            title_label.pack(anchor="nw", padx=10)
+
+            cast = movie.info.get("cast", None)
+            if cast:
+                cast = f"\nCast:\t{movie.info["cast"][0]["name"]}, {movie.info["cast"][1]["name"]}"
+                cast_label = tk.Label(movie_entry_frame, text=cast)
+                cast_label.pack(anchor="nw", padx=10)
 
     def create_treeview(self):
         y_scrollbar = ttk.Scrollbar(self.table_frame)
@@ -202,7 +207,9 @@ class DataFilterApp:
         y_scrollbar.config(command=self.tree.yview)
         x_scrollbar.config(command=self.tree.xview)
 
-        data = pd.DataFrame([movie.info for movie in self.folder_manager.get_movies()])
+        data = pd.DataFrame(
+            [movie.displayable_info() for movie in self.folder_manager.get_movies()]
+        )
         self.tree["columns"] = list(data.columns)
         self.tree.column("#0", width=0, stretch=tk.NO)  # Hide the first column
 
@@ -271,7 +278,6 @@ class DataFilterApp:
         self.status_var.set(f"Filtered: {len(filtered_data)} records found")
 
     def reset_filter(self):
-        # Reset to show all data
         self.display_all_data()
         self.status_var.set(f"Filter reset: {len(self.dict_data)} records displayed")
 
@@ -279,10 +285,12 @@ class DataFilterApp:
         self.display_filtered_data(self.folder_manager.get_movies())
 
     def display_filtered_data(self, movies):
-        filtered_dict = [movie.info for movie in movies]
-        filtered_df = pd.DataFrame(filtered_dict)
+        filtered_dict_displayable = [movie.displayable_info() for movie in movies]
+        df = pd.DataFrame(filtered_dict_displayable)
+        filtered_df = df[["title"] + [col for col in df.columns if col != "title"]]
+        filtered_all_data = [movie.info for movie in movies]
 
-        # update photo view
+        # Update photo view
         self.clear_movie_entries()
         self.create_movie_entries()
 
@@ -297,7 +305,7 @@ class DataFilterApp:
         # Update JSON view
         self.json_text.delete(1.0, tk.END)
         if movies:
-            json_str = json.dumps(filtered_dict, indent=2)
+            json_str = json.dumps(filtered_all_data, indent=2)
             self.json_text.insert(tk.END, json_str)
 
         # Update chart
