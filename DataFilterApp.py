@@ -23,8 +23,7 @@ class DataFilterApp:
         self.root.minsize(800, 600)
 
         self.folder_manager = FolderManager(self.directory)
-        self.set_dict_data()
-        self.data = pd.DataFrame(self.dict_data)
+        self.movies = self.folder_manager.get_movies()
 
         self.create_widgets()
         self.display_all_data()
@@ -39,9 +38,6 @@ class DataFilterApp:
             with open("init.json", "w") as f:
                 json.dump({"dir": self.directory}, f)
 
-    def set_dict_data(self):
-        self.dict_data = [a.info for a in self.folder_manager.get_movies()]
-
     def create_widgets(self):
         self.create_top_frame()
         self.create_filter_frame()
@@ -55,7 +51,6 @@ class DataFilterApp:
 
     def reset_movies(self):
         self.folder_manager.reset_movie_info()
-        self.set_dict_data()
         try:
             self.display_all_data()
         except:
@@ -75,8 +70,8 @@ class DataFilterApp:
         filter_frame = ttk.LabelFrame(self.root, text="Filter Options")
         filter_frame.pack(pady=5, padx=10, fill="x")
 
-        if len(self.dict_data) > 0:
-            available_fields = list(self.dict_data[0].keys())
+        if len(self.folder_manager.movies) > 0:
+            available_fields = self.folder_manager.get_keys()
         else:
             available_fields = []
 
@@ -159,10 +154,14 @@ class DataFilterApp:
             (0, 0), window=self.inner_frame, anchor="nw"
         )
 
+    def clear_movie_entries(self):
+        for widget in self.inner_frame.winfo_children():
+            widget.destroy()
+
     def create_movie_entries(self):
         self.image_references = []
         target_height = 128
-        for movie in self.folder_manager.get_movies():
+        for movie in self.movies:
             movie_entry_frame = ttk.Frame(
                 self.inner_frame, borderwidth=2, relief="solid"
             )
@@ -203,11 +202,11 @@ class DataFilterApp:
         y_scrollbar.config(command=self.tree.yview)
         x_scrollbar.config(command=self.tree.xview)
 
-        # Setup treeview columns
-        self.tree["columns"] = list(self.data.columns)
+        data = pd.DataFrame([movie.info for movie in self.folder_manager.get_movies()])
+        self.tree["columns"] = list(data.columns)
         self.tree.column("#0", width=0, stretch=tk.NO)  # Hide the first column
 
-        for col in self.data.columns:
+        for col in data.columns:
             self.tree.column(col, anchor=tk.W, width=100)
             self.tree.heading(col, text=col, anchor=tk.W)
 
@@ -246,14 +245,7 @@ class DataFilterApp:
             self.canvas.yview_scroll(1, "units")
 
     def _on_filter_type_change(self, event):
-        filter_type = self.filter_type.get()
-
-        # Clear previous filter value
         self.filter_value.delete(0, tk.END)
-
-        # Provide hint based on filter type
-        if not self.dict_data:
-            return
 
     def open_file_path(self, path):
         try:
@@ -270,57 +262,13 @@ class DataFilterApp:
             messagebox.showwarning("Filter Error", "Please enter a valid filter value.")
             return
 
-        # Apply filter based on type and method
-        filtered_data = []
+        filtered_data = self.folder_manager.apply_filter(
+            filter_type, filter_method, filter_value
+        )
 
-        try:
-            for item in self.dict_data:
-                if filter_type in item:
-                    item_value = item[filter_type]
-
-                    # Convert to appropriate type for comparison
-                    try:
-                        if isinstance(item_value, (int, float)):
-                            filter_value_converted = float(filter_value)
-                        else:
-                            filter_value_converted = filter_value
-                    except ValueError:
-                        # If conversion fails, use string comparison
-                        item_value = str(item_value)
-                        filter_value_converted = filter_value
-
-                    # Apply filter based on method
-                    if filter_method == "equals":
-                        if str(item_value) == str(filter_value_converted):
-                            filtered_data.append(item)
-                    elif filter_method == "greater than":
-                        if (
-                            isinstance(item_value, (int, float))
-                            and item_value > filter_value_converted
-                        ):
-                            filtered_data.append(item)
-                    elif filter_method == "less than":
-                        if (
-                            isinstance(item_value, (int, float))
-                            and item_value < filter_value_converted
-                        ):
-                            filtered_data.append(item)
-                    elif filter_method == "contains":
-                        if (
-                            str(filter_value_converted).lower()
-                            in str(item_value).lower()
-                        ):
-                            filtered_data.append(item)
-
-            # Convert filtered data to DataFrame for display
-            filtered_df = pd.DataFrame(filtered_data)
-
-            # Update display with filtered data
-            self.display_filtered_data(filtered_df, filtered_data)
-            self.status_var.set(f"Filtered: {len(filtered_data)} records found")
-
-        except Exception as e:
-            messagebox.showerror("Filter Error", f"Error applying filter: {str(e)}")
+        self.movies = filtered_data
+        self.display_filtered_data(filtered_data)
+        self.status_var.set(f"Filtered: {len(filtered_data)} records found")
 
     def reset_filter(self):
         # Reset to show all data
@@ -328,24 +276,28 @@ class DataFilterApp:
         self.status_var.set(f"Filter reset: {len(self.dict_data)} records displayed")
 
     def display_all_data(self):
-        self.display_filtered_data(self.data, self.dict_data)
+        self.display_filtered_data(self.folder_manager.get_movies())
 
-    def display_filtered_data(self, filtered_df, filtered_dict_data):
+    def display_filtered_data(self, movies):
+        filtered_dict = [movie.info for movie in movies]
+        filtered_df = pd.DataFrame(filtered_dict)
+
         # update photo view
-        # for item in self.inner_frame.get_children
-        # Clear existing data in tree view
+        self.clear_movie_entries()
+        self.create_movie_entries()
+
+        # Update tree view
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Add filtered data to treeview
         if not filtered_df.empty:
             for i, row in filtered_df.iterrows():
                 self.tree.insert("", tk.END, values=list(row))
 
         # Update JSON view
         self.json_text.delete(1.0, tk.END)
-        if filtered_dict_data:
-            json_str = json.dumps(filtered_dict_data, indent=2)
+        if movies:
+            json_str = json.dumps(filtered_dict, indent=2)
             self.json_text.insert(tk.END, json_str)
 
         # Update chart
@@ -360,22 +312,17 @@ class DataFilterApp:
             ttk.Label(self.chart_frame, text="No data to display").pack(expand=True)
             return
 
-        # Create figure and axis
         fig, ax = plt.subplots(figsize=(8, 4))
 
-        # Determine chart type based on filter
         filter_type = self.filter_type.get()
 
-        # Create appropriate chart based on data type
         if filter_type in data.columns:
             if data[filter_type].dtype in [int, float]:
-                # Numeric data - create histogram
                 ax.hist(data[filter_type], bins=10, edgecolor="black")
                 ax.set_title(f"Distribution of {filter_type}")
                 ax.set_xlabel(filter_type)
                 ax.set_ylabel("Frequency")
             else:
-                # Categorical data - create bar chart
                 counts = data[filter_type].value_counts()
                 counts.plot(kind="bar", ax=ax)
                 ax.set_title(f"Count by {filter_type}")
@@ -391,7 +338,6 @@ class DataFilterApp:
                 transform=ax.transAxes,
             )
 
-        # Create canvas
         canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)

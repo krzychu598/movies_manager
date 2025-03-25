@@ -15,7 +15,7 @@ class Tag(Enum):
 class Movie:
     def __init__(self, info):
         self.year = int(info["year"])
-        # self.res = info["resolution"]
+        self.res = info["resolution"]
         self.path = info["path"]
         self.title = info["title"]
         # self.director = info.get("director")
@@ -106,6 +106,44 @@ class FolderManager:
 
     def get_movies(self):
         return list(self.movies.values())
+
+    def get_keys(self):
+        return list(list(self.movies.values())[0].info.keys())
+
+    def apply_filter(self, filter_type, filter_method, filter_value):
+        filtered_movies = []
+        for item in self.movies.values():
+            if filter_type in item.info:
+                item_value = item.info[filter_type]
+
+                try:
+                    if isinstance(item_value, (int, float)):
+                        filter_value_converted = int(filter_value)
+                    else:
+                        filter_value_converted = filter_value
+                except ValueError:
+                    item_value = str(item_value)
+                    filter_value_converted = filter_value
+
+                if filter_method == "equals":
+                    if str(item_value) == str(filter_value_converted):
+                        filtered_movies.append(item)
+                elif filter_method == "greater than":
+                    if (
+                        isinstance(item_value, (int, float))
+                        and item_value > filter_value_converted
+                    ):
+                        filtered_movies.append(item)
+                elif filter_method == "less than":
+                    if (
+                        isinstance(item_value, (int, float))
+                        and item_value < filter_value_converted
+                    ):
+                        filtered_movies.append(item)
+                elif filter_method == "contains":
+                    if str(filter_value_converted).lower() in str(item_value).lower():
+                        filtered_movies.append(item)
+        return filtered_movies
 
     def create_movies(self):
         for folder_name in os.listdir(self.path):
