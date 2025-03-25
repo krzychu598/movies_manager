@@ -55,6 +55,14 @@ class FolderManager:
                 self.movies[info["title"]] = Movie(info)
                 self.movies[info["title"]].save_info_to_file()
 
+    def reset_movie_info(self):
+        self.movies = {}
+        for folder_name in os.listdir(self.path):
+            info = self._get_info_from_name(folder_name)
+            info["path"] = os.path.join(self.path, folder_name)
+            self.movies[info["title"]] = Movie(info)
+            self.movies[info["title"]].save_info_to_file()
+
     def rename(self):
         pass
 

@@ -53,11 +53,21 @@ class DataFilterApp:
         self.create_status_var()
         self.bind_all()
 
+    def reset_movies(self):
+        self.folder_manager.reset_movie_info()
+        self.set_dict_data()
+        try:
+            self.display_all_data()
+        except:
+            pass
+
     def create_top_frame(self):
         top_frame = ttk.Frame(self.root)
         top_frame.pack(pady=5, padx=10, fill="x")
         load_button = ttk.Button(
-            top_frame, text="Refresh Dictionary Data", command=self.set_dict_data
+            top_frame,
+            text="Reset Movies Data",
+            command=self.reset_movies,
         )
         load_button.pack(side="right", padx=5)
 
