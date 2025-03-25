@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from FolderManager import FolderManager, Tag
 import json
+from PIL import Image, ImageTk
 
 
 class MovieEntry:
@@ -15,6 +16,20 @@ class MovieEntry:
 class DataFilterApp:
     def __init__(self, root):
         self.root = root
+        self.set_working_directory()
+
+        self.root.title("Data Filter Application")
+        self.root.geometry("800x600")
+        self.root.minsize(800, 600)
+
+        self.folder_manager = FolderManager(self.directory)
+        self.set_dict_data()
+        self.data = pd.DataFrame(self.dict_data)
+
+        self.create_widgets()
+        self.display_all_data()
+
+    def set_working_directory(self):
         try:
             with open("init.json", "r") as f:
                 d = json.load(f)
@@ -23,32 +38,30 @@ class DataFilterApp:
             self.directory = filedialog.askdirectory(title="Select Data Directory")
             with open("init.json", "w") as f:
                 json.dump({"dir": self.directory}, f)
-        self.root.title("Data Filter Application")
-        self.root.geometry("800x600")
-        self.root.minsize(800, 600)
 
-        self.folder_manager = FolderManager(self.directory)
-        self.dict_data = self.update_dict_data()
-        self.data = pd.DataFrame(self.dict_data)
-
-        self.create_widgets()
-        self.display_data()
-
-    def update_dict_data(self):
-        info = []
-        for movie in self.folder_manager.movies.values():
-            info.append(movie.info)
-        return info
+    def set_dict_data(self):
+        self.dict_data = [a.info for a in self.folder_manager.get_movies()]
 
     def create_widgets(self):
+        self.create_top_frame()
+        self.create_filter_frame()
+        self.create_data_frame()
+        self.create_photo_view()
+        self.create_movie_entries()
+        self.create_treeview()
+        self.create_json_viewer()
+        self.create_status_var()
+        self.bind_all()
+
+    def create_top_frame(self):
         top_frame = ttk.Frame(self.root)
         top_frame.pack(pady=5, padx=10, fill="x")
-
         load_button = ttk.Button(
-            top_frame, text="Refresh Dictionary Data", command=self.update_dict_data
+            top_frame, text="Refresh Dictionary Data", command=self.set_dict_data
         )
         load_button.pack(side="right", padx=5)
 
+    def create_filter_frame(self):
         filter_frame = ttk.LabelFrame(self.root, text="Filter Options")
         filter_frame.pack(pady=5, padx=10, fill="x")
 
@@ -65,7 +78,7 @@ class DataFilterApp:
         if available_fields:
             self.filter_type.current(0)
         self.filter_type.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-        self.filter_type.bind("<<ComboboxSelected>>", self.on_filter_type_change)
+        self.filter_type.bind("<<ComboboxSelected>>", self._on_filter_type_change)
 
         ttk.Label(filter_frame, text="Filter Method:").grid(
             row=0, column=2, padx=5, pady=5, sticky="w"
@@ -91,51 +104,75 @@ class DataFilterApp:
         )
         self.filter_button.grid(row=1, column=2, padx=5, pady=5)
 
-        # Reset filter button
         self.reset_button = ttk.Button(
             filter_frame, text="Reset Filter", command=self.reset_filter
         )
         self.reset_button.grid(row=1, column=3, padx=5, pady=5)
 
-        # Set default filter values based on selected type
-        self.on_filter_type_change(None)
+        self._on_filter_type_change(None)
 
-        # Create a frame for displaying data
+    def create_data_frame(self):
         self.data_frame = ttk.LabelFrame(self.root, text="Data Display")
         self.data_frame.pack(pady=5, padx=10, fill="both", expand=True)
 
-        # Create a notebook with tabs for table and chart views
         self.notebook = ttk.Notebook(self.data_frame)
         self.notebook.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # Table view tab
+        self.photo_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.photo_frame, text="Photo View")
+
         self.table_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.table_frame, text="Table View")
 
-        # Chart view tab
         self.chart_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.chart_frame, text="Chart View")
 
-        # Raw JSON view tab
         self.json_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.json_frame, text="JSON View")
 
-        # Create treeview for data table
-        self.create_treeview()
+    def create_photo_view(self):
+        self.canvas = tk.Canvas(self.photo_frame)
+        self.canvas.pack(side="left", fill="both", expand=True)
 
-        # Create JSON viewer
-        self.create_json_viewer()
-
-        # Status bar
-        self.status_var = tk.StringVar()
-        self.status_var.set("Ready")
-        self.status_bar = ttk.Label(
-            self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor="w"
+        y_scrollbar = ttk.Scrollbar(
+            self.photo_frame, orient="vertical", command=self.canvas.yview
         )
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas.configure(yscrollcommand=y_scrollbar.set)
+
+        self.inner_frame = ttk.Frame(self.canvas)
+        self.inner_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
+        )
+        self.inner_window = self.canvas.create_window(
+            (0, 0), window=self.inner_frame, anchor="nw"
+        )
+
+    def create_movie_entries(self):
+        self.image_references = []
+        target_height = 128
+        for movie in self.folder_manager.get_movies():
+            movie_entry_frame = ttk.Frame(
+                self.inner_frame, borderwidth=2, relief="solid"
+            )
+            movie_entry_frame.pack(fill="x", padx=5, pady=2)
+
+            image = Image.open(movie.get_image_path())
+            aspect_ratio = image.width / image.height
+            new_width = int(target_height * aspect_ratio)
+            image = image.resize((new_width, target_height))
+            photo = ImageTk.PhotoImage(image)
+
+            self.image_references.append(photo)
+
+            image_label = tk.Label(movie_entry_frame, image=photo)
+            image_label.pack(side="left")
+
+            title_label = tk.Label(movie_entry_frame, text=movie.title)
+            title_label.pack(side="left", expand=True, padx=10)
 
     def create_treeview(self):
-        # Create scrollbars
         y_scrollbar = ttk.Scrollbar(self.table_frame)
         y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -165,51 +202,37 @@ class DataFilterApp:
         self.tree.pack(fill="both", expand=True)
 
     def create_json_viewer(self):
-        # Create scrollbars
         y_scrollbar = ttk.Scrollbar(self.json_frame)
         y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Create text widget for JSON display
         self.json_text = tk.Text(
             self.json_frame, wrap=tk.WORD, yscrollcommand=y_scrollbar.set
         )
         self.json_text.pack(fill="both", expand=True)
-
-        # Configure scrollbar
         y_scrollbar.config(command=self.json_text.yview)
 
-    def load_dictionary_data(self):
-        # In a real application, you would open a file dialog here
-        # For this example, we'll just show a message
-        messagebox.showinfo(
-            "Load Data",
-            "In a real application, this would open a file dialog to select a JSON file with dictionary data.",
+    def create_status_var(self):
+        self.status_var = tk.StringVar()
+        self.status_var.set("Ready")
+        self.status_bar = ttk.Label(
+            self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor="w"
         )
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Example of how you might load data in a real application:
-        """
-        from tkinter import filedialog
-        file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
-        if file_path:
-            try:
-                with open(file_path, 'r') as file:
-                    self.dict_data = json.load(file)
-                    self.data = pd.DataFrame(self.dict_data)
-                    
-                    # Update filter types based on new data
-                    if self.dict_data:
-                        available_fields = list(self.dict_data[0].keys())
-                        self.filter_type['values'] = available_fields
-                        self.filter_type.current(0)
-                    
-                    # Display the loaded data
-                    self.display_data()
-                    self.status_var.set(f"Loaded {len(self.dict_data)} records from {os.path.basename(file_path)}")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to load data: {str(e)}")
-        """
+    def bind_all(self):
+        self.canvas.bind_all("<MouseWheel>", self._on_mouse_scroll)  # Windows/macOS
+        self.canvas.bind_all("<Button-4>", self._on_mouse_scroll)  # Linux scroll up
+        self.canvas.bind_all("<Button-5>", self._on_mouse_scroll)  # Linux scroll down
 
-    def on_filter_type_change(self, event):
+    def _on_mouse_scroll(self, event):
+        if event.delta:  # Windows/macOS
+            self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+        elif event.num == 4:  # Linux scroll up
+            self.canvas.yview_scroll(-1, "units")
+        elif event.num == 5:  # Linux scroll down
+            self.canvas.yview_scroll(1, "units")
+
+    def _on_filter_type_change(self, event):
         filter_type = self.filter_type.get()
 
         # Clear previous filter value
@@ -282,14 +305,15 @@ class DataFilterApp:
 
     def reset_filter(self):
         # Reset to show all data
-        self.display_data()
+        self.display_all_data()
         self.status_var.set(f"Filter reset: {len(self.dict_data)} records displayed")
 
-    def display_data(self):
-        # Display all data
+    def display_all_data(self):
         self.display_filtered_data(self.data, self.dict_data)
 
     def display_filtered_data(self, filtered_df, filtered_dict_data):
+        # update photo view
+        # for item in self.inner_frame.get_children
         # Clear existing data in tree view
         for item in self.tree.get_children():
             self.tree.delete(item)

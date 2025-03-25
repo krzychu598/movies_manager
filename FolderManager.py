@@ -18,6 +18,7 @@ class Movie:
         # self.year = int(info["year"])
         # self.res = info["resolution"]
         self.path = info["path"]
+        self.title = info["title"]
         # self.director = info.get("director")
         self.info = info
 
@@ -28,12 +29,19 @@ class Movie:
         with open(os.path.join(self.path, "tags.json"), "w") as f:
             json.dump(self.info, f)
 
+    def get_image_path(self):
+        for image in os.listdir(os.path.join(self.path, "images")):
+            return os.path.join(self.path, "images", image)
+
 
 class FolderManager:
     def __init__(self, path="D:\\movies"):
         self.path = path
         self.movies = {}  # title : movie_object
         self.create_movies()
+
+    def get_movies(self):
+        return list(self.movies.values())
 
     def create_movies(self):
         for folder_name in os.listdir(self.path):
@@ -118,4 +126,4 @@ class FolderManager:
 
 if __name__ == "__main__":
     fm = FolderManager()
-    fm.save_images()
+    print(os.access(fm.movies["Ringu"].path, os.R_OK))
