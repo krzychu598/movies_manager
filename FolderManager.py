@@ -20,6 +20,7 @@ class Movie:
         self.title = info["title"]
         # self.director = info.get("director")
         self.info = info
+        self.full_info = None
 
     def add_tag(self, tag):
         self.info[tag[0]] = tag[1]
@@ -29,34 +30,79 @@ class Movie:
             json.dump(self.info, f)
 
     def get_image_path(self):
+        if self.is_poster():
+            return self.get_poster_path()
+        elif self.is_frame():
+            return self.get_frame_path()
+        else:
+            print(f"Couldn't find image for {self.title}")
+
+    def get_poster_path(self):
+        return os.path.join(self.path, "images", "poster.jpg")
+
+    def get_frame_path(self):
         for image in os.listdir(os.path.join(self.path, "images")):
             return os.path.join(self.path, "images", image)
 
-    def get_full_movie_info(self):
-        try:
-            with open("api_key.txt", "r") as f:
-                api_key = f.readline()
-        except:
-            print("No api key found!")
-            return
-        url = f"https://api.themoviedb.org/3/search/movie?include_adult=true&query={self.title}&api_key={api_key}"
+    def save_poster(self, api_key):
+        if not self.is_poster():
+            try:
+                url = f"https://image.tmdb.org/t/p/original{self.full_info["poster_path"]}?api_key={api_key}"
+                response = requests.get(url)
+                if response.status_code == 200:
+                    with open(
+                        f"{os.path.join(self.path, "images", "poster.jpg")}", "wb"
+                    ) as f:
+                        f.write(response.content)
+                else:
+                    print(f"Could't get poster for {self.title}")
+            except:
+                print(f"Could't get poster for {self.title}")
+
+    def set_full_movie_info(self, base_url, api_key):
+        if self.is_poster():
+            return  # to delete later
+        url = f"{base_url}search/movie?include_adult=true&query={self.title}&api_key={api_key}"
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
             for movie in data["results"]:
                 if movie["release_date"].split("-")[0] == str(self.year):
-                    print(movie)
+                    self.full_info = movie
                     return
-            print("Movie wasn't found")
+            print(f"Movie {self.title} wasn't found")
         else:
             print(f"Error {response.status_code}")
+
+    def is_poster(self):
+        try:
+            with open(self.get_poster_path(), "rb"):
+                return True
+        except:
+            return False
+
+    def is_frame(self):
+        try:
+            with open(self.get_frame_path(), "rb"):
+                return True
+        except:
+            return False
 
 
 class FolderManager:
     def __init__(self, path="D:\\movies"):
         self.path = path
-        self.movies = {}  # title : movie_object
+        self.movies: dict[str, Movie] = {}  # title : movie_object
         self.create_movies()
+        self.initialize_api()
+
+    def initialize_api(self):
+        try:
+            with open("api_key.txt", "r") as f:
+                self.api_key = f.readline()
+        except:
+            print("No api key found!")
+        self.url_base = "https://api.themoviedb.org/3/"
 
     def get_movies(self):
         return list(self.movies.values())
@@ -74,12 +120,17 @@ class FolderManager:
                 self.movies[info["title"]].save_info_to_file()
 
     def reset_movie_info(self):
-        self.movies = {}
+        self.movies: dict[str, Movie] = {}
         for folder_name in os.listdir(self.path):
             info = self._get_info_from_name(folder_name)
             info["path"] = os.path.join(self.path, folder_name)
             self.movies[info["title"]] = Movie(info)
             self.movies[info["title"]].save_info_to_file()
+
+    def update_movie_info(self):
+        for movie in fm.movies.values():
+            movie.set_full_movie_info(fm.url_base, fm.api_key)
+            movie.save_poster(fm.api_key)
 
     def rename(self):
         pass
@@ -152,5 +203,5 @@ class FolderManager:
 
 if __name__ == "__main__":
     fm = FolderManager()
-    print(os.access(fm.movies["Frankenstein"].path, os.R_OK))
-    fm.movies["Frankenstein"].get_full_movie_info()
+    fm.update_movie_info()
+    # print(os.access(fm.movies["Frankenstein"].path, os.R_OK))
