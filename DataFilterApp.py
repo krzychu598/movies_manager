@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from FolderManager import FolderManager, Tag
-import json
+import json, os
 from PIL import Image, ImageTk
 
 
@@ -180,6 +180,9 @@ class DataFilterApp:
             image_label.pack(side="left")
 
             title_label = tk.Label(movie_entry_frame, text=movie.title)
+            title_label.bind(
+                "<Button-1>", lambda _, path=movie.path: self.open_file_path(path)
+            )
             title_label.pack(side="left", expand=True, padx=10)
 
     def create_treeview(self):
@@ -251,6 +254,12 @@ class DataFilterApp:
         # Provide hint based on filter type
         if not self.dict_data:
             return
+
+    def open_file_path(self, path):
+        try:
+            os.startfile(path)
+        except:
+            self.status_var.set("Could't open folder")
 
     def apply_filter(self):
         filter_type = self.filter_type.get()
