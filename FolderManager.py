@@ -14,8 +14,18 @@ class Tag(Enum):
 
 
 class FolderManager:
-    def __init__(self, path="D:\\movies"):
-        self.path = path
+    def __init__(self):
+        pass
+
+    def initialize(self, dir=None):
+        if not dir:
+            with open("init.json", "r") as f:
+                self.info = json.load(f)
+                self.path = self.info["dir"]
+        else:
+            with open("init.json", "w") as f:
+                json.dump({"dir": dir}, f)
+                self.path = dir
         self.movies: dict[str, Movie] = {}  # title : movie_object
         self.create_movies()
         self.initialize_api()
@@ -27,6 +37,9 @@ class FolderManager:
         except:
             print("No api key found!")
         self.url_base = "https://api.themoviedb.org/3/"
+
+    def initialize_json(self):
+        pass
 
     def get_movies(self):
         return list(self.movies.values())

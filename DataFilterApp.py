@@ -11,29 +11,23 @@ from PIL import Image, ImageTk
 class DataFilterApp:
     def __init__(self, root):
         self.root = root
-        self.set_working_directory()
+        self.folder_manager = FolderManager()
+        try:
+            self.folder_manager.initialize()
+        except:
+            directory = filedialog.askdirectory(title="Select Data Directory")
+            self.folder_manager.initialize(directory)
 
         self.root.title("Data Filter Application")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
-        self.root.state("zoomed")
-        root.configure(bg="#2E2E2E")
+        # self.root.state("zoomed")
+        # root.configure(bg="#2E2E2E")
 
-        self.folder_manager = FolderManager(self.directory)
         self.movies = self.folder_manager.get_movies()
 
         self.create_widgets()
         self.display_all_data()
-
-    def set_working_directory(self):
-        try:
-            with open("init.json", "r") as f:
-                d = json.load(f)
-                self.directory = d["dir"]
-        except:
-            self.directory = filedialog.askdirectory(title="Select Data Directory")
-            with open("init.json", "w") as f:
-                json.dump({"dir": self.directory}, f)
 
     def create_widgets(self):
         self.create_top_frame()
