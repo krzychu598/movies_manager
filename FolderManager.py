@@ -1,6 +1,7 @@
 import os, re, json, cv2, random
 from enum import Enum
 from MovieInfo import Movie
+from ApiController import ApiController
 
 
 class Tag(Enum):
@@ -28,15 +29,6 @@ class FolderManager:
                 self.path = dir
         self.movies: dict[str, Movie] = {}  # title : movie_object
         self.create_movies()
-        self.initialize_api()
-
-    def initialize_api(self):
-        try:
-            with open("api_key.txt", "r") as f:
-                self.api_key = f.readline()
-        except:
-            print("No api key found!")
-        self.url_base = "https://api.themoviedb.org/3/"
 
     def initialize_json(self):
         pass
@@ -104,9 +96,7 @@ class FolderManager:
 
     def update_movie_info(self, force=False):
         for movie in self.movies.values():
-            movie.update_movie_info(self.url_base, self.api_key, force=force)
-            movie.update_poster(self.api_key)
-            movie.update_cast_info(self.api_key, force=force)
+            movie.update_movie(force=force)
 
     def rename(self):
         pass

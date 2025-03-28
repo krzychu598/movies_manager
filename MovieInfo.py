@@ -1,4 +1,5 @@
 import requests, os, json
+import ApiController
 
 
 class Movie:
@@ -18,6 +19,11 @@ class Movie:
         self.info = info
         self.info["year"] = int(self.info["year"])
 
+    def update_movie(self, force=False):
+        self.update_movie_info(force=force)
+        self.update_poster()
+        self.update_cast_info(force=force)
+
     def displayable_info(self):
         dis = self.info.copy()
         dis.pop("api", None)
@@ -34,46 +40,30 @@ class Movie:
         else:
             print(f"Couldn't find image for {self.title}")
 
-    def update_movie_info(self, base_url, api_key, force=False):
+    def update_movie_info(self, force=False):
         if self.info.get("api", "-") != "-" and not force:
             return
-        url = f"{base_url}search/movie?include_adult=true&query={self.title}&api_key={api_key}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            for movie in data["results"]:
-                if movie["release_date"].split("-")[0] == str(self.year):
-                    self._update_api_dict(movie)
-                    return
+        movie_info = ApiController.get_movie_info(self.title, self.year)
+        if not movie_info:
             print(f"Movie {self.title} wasn't found")
-        else:
-            print(f"Error {response.status_code}")
+        self._update_api_dict(movie_info)
 
-    def update_cast_info(self, api_key, force=False):
+    def update_cast_info(self, force=False):
         if self.info.get("director", "-") != "-" and not force:
             return
-        url = f"https://api.themoviedb.org/3/movie/{self.id}/credits?api_key={api_key}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            self._update_cast_dict(response.json())
-        else:
+        cast_info = ApiController.get_cast_info(self.id)
+        if not cast_info:
             print(f"Credits not found for {self.title}")
+        self._update_cast_dict(cast_info)
 
-    def update_poster(self, api_key, force=False):
+    def update_poster(self, force=False):
         if self._is_poster() and not force:
             return
-        try:
-            url = f"https://image.tmdb.org/t/p/original{self.info["api"]["poster_path"]}?api_key={api_key}"
-            response = requests.get(url)
-            if response.status_code == 200:
-                with open(
-                    f"{os.path.join(self.path, "images", "poster.jpg")}", "wb"
-                ) as f:
-                    f.write(response.content)
-            else:
-                print(f"Could't get poster for {self.title}")
-        except:
+        img = ApiController.get_poster(self.info["api"]["poster_path"])
+        if not img:
             print(f"Could't get poster for {self.title}")
+        with open(self._get_poster_path(), "wb") as f:
+            f.write(img)
 
     def _update_api_dict(self, new_dict):
         self.id = new_dict["id"]
@@ -82,7 +72,6 @@ class Movie:
             "genre_ids": new_dict["genre_ids"],
             "poster_path": new_dict["poster_path"],
         }
-        self._save_info_to_file()
 
     def _update_cast_dict(self, new_dict):
         # cast: name, id, popularity, order, character
@@ -111,7 +100,6 @@ class Movie:
             )
 
         self.info["cast"] = cast
-        self._save_info_to_file()
 
     def _save_info_to_file(self):
         with open(os.path.join(self.path, "tags.json"), "w", encoding="utf-8") as f:
