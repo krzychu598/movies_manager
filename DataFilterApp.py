@@ -16,6 +16,8 @@ class DataFilterApp:
         self.root.title("Data Filter Application")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
+        self.root.state("zoomed")
+        root.configure(bg="#2E2E2E")
 
         self.folder_manager = FolderManager(self.directory)
         self.movies = self.folder_manager.get_movies()
