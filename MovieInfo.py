@@ -62,7 +62,7 @@ class Movie:
         img = ApiController.get_poster(self.info["api"]["poster_path"])
         if not img:
             print(f"Could't get poster for {self.title}")
-        with open(self._get_poster_path(), "wb") as f:
+        with open(self._get_poster_path(), "wb") as f:  # TODO fix error
             f.write(img)
 
     def _update_api_dict(self, new_dict):

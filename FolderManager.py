@@ -1,7 +1,7 @@
-import os, re, json, cv2, random
+import os, re, json, cv2, random, shutil
 from enum import Enum
 from MovieInfo import Movie
-from ApiController import ApiController
+from pathlib import Path
 
 
 class Tag(Enum):
@@ -20,18 +20,26 @@ class FolderManager:
 
     def initialize(self, dir=None):
         if not dir:
-            with open("init.json", "r") as f:
-                self.info = json.load(f)
-                self.path = self.info["dir"]
+            self.init_info = self._get_info_from_file("init.json")
+            self.path = self.init_info["dir"]
         else:
-            with open("init.json", "w") as f:
-                json.dump({"dir": dir}, f)
-                self.path = dir
+            self._write_to_file("init.json", {"dir": dir})
+            self.init_info = {"dir": dir}
+            self.path = dir
         self.movies: dict[str, Movie] = {}  # title : movie_object
         self.create_movies()
+        self.save_new_info(dir)
+
+    def save_new_info(self, dir):
+        new_movies_info = [movie.info for movie in self.movies.values()]
+        new_info = {"dir": dir, "movies": new_movies_info}
+        self._write_to_file("init.json", new_info)
 
     def initialize_json(self):
         pass
+
+    def set_path(self, path):
+        self.path = path
 
     def get_movies(self):
         return list(self.movies.values())
@@ -75,16 +83,38 @@ class FolderManager:
         return filtered_movies
 
     def create_movies(self):
+        init_movies_info = self.init_info.get("movies", [{}])
+        init_movies_titles = [a.get("title", None) for a in init_movies_info]
         for folder_name in os.listdir(self.path):
-            file_info_path = os.path.join(self.path, folder_name, "tags.json")
-            try:
-                info = self._get_info_from_file(file_info_path)
-                self.movies[info["title"]] = Movie(info)
-            except:
+            if folder_name in init_movies_titles:
+                self.movies[folder_name] = Movie(init_movies_info[folder_name])
+            else:
+                folder_name = self._process_movie(folder_name)
                 info = self._get_info_from_name(folder_name)
+                new_folder_name = f"{info["title"]} ({info["year"]})"
+                if new_folder_name != folder_name:
+                    os.rename(
+                        os.path.join(self.path, folder_name),
+                        os.path.join(self.path, new_folder_name),
+                    )
                 info["path"] = os.path.join(self.path, folder_name)
-                self.movies[info["title"]] = Movie(info)
-                self.movies[info["title"]]._save_info_to_file()
+                self.movies[new_folder_name] = Movie(info)
+
+        self.update_movie_info()
+
+    def _process_movie(self, ent_name):
+        ent_path = os.path.join(self.path, ent_name)
+        if os.path.isfile(ent_path):
+            return self._move_to_folder(ent_name)
+        return ent_name
+
+    def _move_to_folder(self, ent_name):
+        ent_path = os.path.join(self.path, ent_name)
+        new_folder_path = os.path.splitext(ent_path)[0]
+        new_movie_path = os.path.join(new_folder_path, ent_name)
+        os.makedirs(new_folder_path)
+        shutil.move(ent_path, new_movie_path)
+        return Path(new_folder_path).name
 
     def reset_movie_info(self):
         self.movies: dict[str, Movie] = {}
@@ -104,6 +134,10 @@ class FolderManager:
     def _get_info_from_file(self, path) -> dict:
         with open(path) as f:
             return json.load(f)
+
+    def _write_to_file(self, path, data):
+        with open(path, "w") as f:
+            json.dump(data, f)
 
     def _get_info_from_name(self, file_name) -> dict:
         year_match = re.search(r"(?:^|\D)(19\d{2}|20\d{2})(?:\D|$)", file_name)

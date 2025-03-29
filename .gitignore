@@ -5,3 +5,4 @@ __pycache__
 *.json
 test.py
 api_key.txt
+test_*.py
