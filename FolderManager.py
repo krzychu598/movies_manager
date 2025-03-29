@@ -14,13 +14,20 @@ class Tag(Enum):
     ACTRESSES = "actresses"
 
 
+class NoInitException(Exception):
+    pass
+
+
 class FolderManager:
     def __init__(self):
         pass
 
     def initialize(self, dir=None):
         if not dir:
-            self.init_info = self._get_info_from_file("init.json")
+            try:
+                self.init_info = self._get_info_from_file("init.json")
+            except:
+                raise NoInitException("No init file")
             self.path = self.init_info["dir"]
         else:
             self._write_to_file("init.json", {"dir": dir})
@@ -146,7 +153,15 @@ class FolderManager:
         else:
             year = "unknown"
         parts = re.split(r" \(|\.|\[", file_name)
-        title = parts[0]
+        match = re.search(r"^(.*?)[ ]*(?=\d{4})", file_name)
+        if match:
+            parts2 = match.group(1)
+        else:
+            parts2 = file_name
+        if len(parts[0]) < len(parts2):
+            title = parts[0]
+        else:
+            title = parts2
         res = re.search(r"\[(.*?)\]", file_name)
         if res:
             res = res.group(1)

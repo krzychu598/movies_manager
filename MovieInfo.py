@@ -46,6 +46,7 @@ class Movie:
         movie_info = ApiController.get_movie_info(self.title, self.year)
         if not movie_info:
             print(f"Movie {self.title} wasn't found")
+            return
         self._update_api_dict(movie_info)
 
     def update_cast_info(self, force=False):
@@ -54,15 +55,22 @@ class Movie:
         cast_info = ApiController.get_cast_info(self.id)
         if not cast_info:
             print(f"Credits not found for {self.title}")
+            return
         self._update_cast_dict(cast_info)
 
     def update_poster(self, force=False):
         if self._is_poster() and not force:
             return
-        img = ApiController.get_poster(self.info["api"]["poster_path"])
+        img = None
+        if self.info.get("api", None) is not None:
+            if self.info["api"].get("poster_path", None) is not None:
+                img = ApiController.get_poster(self.info["api"]["poster_path"])
         if not img:
             print(f"Could't get poster for {self.title}")
-        with open(self._get_poster_path(), "wb") as f:  # TODO fix error
+            return
+        poster_path = self._get_poster_path()
+        os.makedirs(os.path.dirname(poster_path), exist_ok=True)
+        with open(poster_path, "wb") as f:
             f.write(img)
 
     def _update_api_dict(self, new_dict):
