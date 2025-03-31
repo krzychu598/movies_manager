@@ -14,8 +14,11 @@ class Movie:
         id = info.get("api", "-")
         if id != "-":
             self.id = info["api"].get("id", "-")
+            self.imdb_id = info["api"].get("imdb_id", "-")
         else:
             self.id = "-"
+            self.imdb_id = "-"
+
         self.info = info
         self.info["year"] = int(self.info["year"])
 
@@ -23,6 +26,7 @@ class Movie:
         self.update_movie_info(force=force)
         self.update_poster()
         self.update_cast_info(force=force)
+        self.get_imdb_link(force=force)
 
     def displayable_info(self):
         dis = self.info.copy()
@@ -57,6 +61,15 @@ class Movie:
             print(f"Credits not found for {self.title}")
             return
         self._update_cast_dict(cast_info)
+
+    def get_imdb_link(self, force=False):
+        if self.imdb_id != "-" and not force:
+            return
+        if self.info.get("api", "-") != "-":
+            if self.info["api"].get("imdb_id", "-") == "-":
+                imdb_id = ApiController.get_imdb_id(self.id)
+                self.info["api"]["imdb_id"] = imdb_id
+                self.imdb_id = imdb_id
 
     def update_poster(self, force=False):
         if self._is_poster() and not force:

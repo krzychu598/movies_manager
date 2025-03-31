@@ -33,3 +33,10 @@ def get_poster(poster_path):
     response = requests.get(url)
     if response.status_code == 200:
         return response.content
+
+
+def get_imdb_id(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/external_ids?api_key={get_api_key()}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()["imdb_id"]

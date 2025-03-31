@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from FolderManager import FolderManager, Tag, NoInitException
 import json, os
 from PIL import Image, ImageTk
+import webbrowser
 
 
 class DataFilterApp:
@@ -169,24 +170,38 @@ class DataFilterApp:
 
             image_label = tk.Label(movie_entry_frame, image=photo)
             image_label.pack(side="left")
-
-            text = f"{movie.title} ({movie.year})\nDirector:\t{movie.director}"
+            image_label.bind(
+                "<Button-1>", lambda _, path=movie.path: self.open_file_path(path)
+            )
+            text = f"{movie.title} ({movie.year})\n\nDirector:\t\t{movie.director}"
             if len(movie.screenplay) > 0:
                 text += f"\nScreenplay:\t{", ".join(movie.screenplay)}"
             title_label = tk.Label(
                 movie_entry_frame,
                 text=text,
+                font=("Arial", 15),
+                anchor="nw",
+                justify="left",
             )
+            title_label.pack(anchor="nw", padx=10)
             title_label.bind(
                 "<Button-1>", lambda _, path=movie.path: self.open_file_path(path)
             )
-            title_label.pack(anchor="nw", padx=10)
 
             cast = movie.info.get("cast", None)
             if cast:
-                cast = f"\nCast:\t{movie.info["cast"][0]["name"]}, {movie.info["cast"][1]["name"]}"
-                cast_label = tk.Label(movie_entry_frame, text=cast)
+                cast = f"\nCast:\t\t{movie.info["cast"][0]["name"]}, {movie.info["cast"][1]["name"]}"
+                cast_label = tk.Label(movie_entry_frame, text=cast, font=("Arial", 15))
                 cast_label.pack(anchor="nw", padx=10)
+
+            imdb_label = tk.Label(movie_entry_frame, text="imdb link")
+            imdb_label.pack(anchor="e", padx=10)
+            imdb_label.bind(
+                "<Button-1>",
+                lambda _, link=f"https://www.imdb.com/title/{movie.imdb_id}": webbrowser.open(
+                    link
+                ),
+            )
 
     def create_treeview(self):
         y_scrollbar = ttk.Scrollbar(self.table_frame)
