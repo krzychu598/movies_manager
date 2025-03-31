@@ -11,12 +11,13 @@ from PIL import Image, ImageTk
 class DataFilterApp:
     def __init__(self, root):
         self.root = root
-        self.folder_manager = FolderManager()
         try:
-            self.folder_manager.initialize()
-        except NoInitException:
+            with open("init.json") as f:
+                directory = json.load(f)["dir"]
+                assert directory is not None
+        except:
             directory = filedialog.askdirectory(title="Select Data Directory")
-            self.folder_manager.initialize(directory)
+        self.folder_manager = FolderManager(directory)
 
         self.root.title("Data Filter Application")
         self.root.geometry("800x600")
@@ -169,7 +170,9 @@ class DataFilterApp:
             image_label = tk.Label(movie_entry_frame, image=photo)
             image_label.pack(side="left")
 
-            text = f"{movie.title} ({movie.year})\nDirector:\t{movie.director}"  # \tScreenplay:\t{", ".join(movie.screenplay)}
+            text = f"{movie.title} ({movie.year})\nDirector:\t{movie.director}"
+            if len(movie.screenplay) > 0:
+                text += f"\nScreenplay:\t{", ".join(movie.screenplay)}"
             title_label = tk.Label(
                 movie_entry_frame,
                 text=text,

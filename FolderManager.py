@@ -19,27 +19,20 @@ class NoInitException(Exception):
 
 
 class FolderManager:
-    def __init__(self):
-        pass
-
-    def initialize(self, dir=None):
-        if not dir:
-            try:
-                self.init_info = self._get_info_from_file("init.json")
-            except:
-                raise NoInitException("No init file")
-            self.path = self.init_info["dir"]
-        else:
-            self._write_to_file("init.json", {"dir": dir})
+    def __init__(self, dir):
+        self.path = dir
+        try:
+            self.init_info = self._get_info_from_file("init.json")
+            self.init_info["dir"] = self.path
+        except:
             self.init_info = {"dir": dir}
-            self.path = dir
         self.movies: dict[str, Movie] = {}  # title : movie_object
         self.create_movies()
-        self.save_new_info(dir)
+        self.save_new_info()
 
-    def save_new_info(self, dir):
+    def save_new_info(self):
         new_movies_info = [movie.info for movie in self.movies.values()]
-        new_info = {"dir": dir, "movies": new_movies_info}
+        new_info = {"dir": self.path, "movies": new_movies_info}
         self._write_to_file("init.json", new_info)
 
     def initialize_json(self):
@@ -92,7 +85,8 @@ class FolderManager:
     def create_movies(self):
         init_movies_info = self.init_info.get("movies", [{}])
         init_movies_titles = [a.get("title", None) for a in init_movies_info]
-        for folder_name in os.listdir(self.path):
+        folders = os.listdir(self.path)
+        for folder_name in folders:
             if folder_name in init_movies_titles:
                 self.movies[folder_name] = Movie(init_movies_info[folder_name])
             else:
@@ -143,8 +137,8 @@ class FolderManager:
             return json.load(f)
 
     def _write_to_file(self, path, data):
-        with open(path, "w") as f:
-            json.dump(data, f)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
     def _get_info_from_name(self, file_name) -> dict:
         year_match = re.search(r"(?:^|\D)(19\d{2}|20\d{2})(?:\D|$)", file_name)
@@ -222,4 +216,4 @@ class FolderManager:
 
 if __name__ == "__main__":
     fm = FolderManager()
-    fm.update_movie_info(force=False)
+    fm.update_movie_info(force=True)
