@@ -153,6 +153,12 @@ class DataFilterApp:
 
     def create_movie_entries(self):
         self.image_references = []
+        try:
+            imdb_icon = Image.open("resources/imdb_icon.png")
+            imdb_icon = imdb_icon.resize((50, 50))
+
+        except:
+            pass
         target_height = 128
         for movie in self.movies:
             movie_entry_frame = ttk.Frame(
@@ -193,8 +199,13 @@ class DataFilterApp:
                 cast = f"\nCast:\t\t{movie.info["cast"][0]["name"]}, {movie.info["cast"][1]["name"]}"
                 cast_label = tk.Label(movie_entry_frame, text=cast, font=("Arial", 15))
                 cast_label.pack(anchor="nw", padx=10)
+            try:
+                icon = ImageTk.PhotoImage(imdb_icon)
+                imdb_label = tk.Label(movie_entry_frame, image=icon)
+                self.image_references.append(icon)
+            except:
+                imdb_label = tk.Label(movie_entry_frame, text="imdb_link")
 
-            imdb_label = tk.Label(movie_entry_frame, text="imdb link")
             imdb_label.pack(anchor="e", padx=10)
             imdb_label.bind(
                 "<Button-1>",
